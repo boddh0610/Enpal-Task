@@ -1,0 +1,23 @@
+trigger CaseTrigger on Case (after insert,before insert,after update) {
+
+    if(trigger.isAfter){
+        if(trigger.isInsert){
+            CaseTriggerHandler.afterinsert(trigger.new);
+        }
+    
+    }
+    
+    if(trigger.isBefore){
+        if(trigger.isInsert){
+            CaseTriggerHandler.beforeinsert(trigger.new);
+        }
+    
+    }
+    if(trigger.isAfter){
+        if(trigger.isUpdate){
+            CaseTriggerHandler.afterUpdate(trigger.new);
+        }
+    
+    }
+    
+}
