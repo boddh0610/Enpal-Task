@@ -88,7 +88,6 @@ public class CaseTriggerHandler {
     
     public static void restrictCaseCreation(List<Case> lstCase){
         for(Case c: lstCase){
-            System.debug('c.Status-1---'+c.Status);
             if(c.Status != 'Closed – Successfully' && c.ParentId != null && c.Parent_Case_Status__c == 'New'){
                 System.debug('c.Status--'+c.Status);
                 c.addError('You are not allowed to create a new Case until the predecessor ones are Closed – Successfully');
