@@ -8,7 +8,7 @@ public class CaseTriggerHandler {
         
     }
     public static void afterUpdate(List<Case> lstCase, Map< Id, Case> oldMap){
-        caseCreationInOrder(lstCase);
+        caseCreationInOrder(lstCase, oldMap);
         markUnsuccessfully(lstCase, oldMap);
     }
     public static void markUnsuccessfully(List<Case> lstCase, Map< Id, Case> mapOfOld ){
@@ -21,7 +21,7 @@ public class CaseTriggerHandler {
                 parentIds.add(c.ParentId);             
             }
         }
-        List<Case> lstRelatedCases = [Select id, Status,ParentId from case where ParentId IN:parentIds];
+        List<Case> lstRelatedCases = [Select id, Status,ParentId from case where ParentId IN:parentIds AND Status !='Closed – Successfully'];
         for(Case cc: lstRelatedCases){
             cc.Status = 'Closed – Unsuccessfully';
             lstOfAllRelatedCases.add(cc);
@@ -29,45 +29,53 @@ public class CaseTriggerHandler {
         }
         if(lstOfAllRelatedCases.size() > 0){
             update lstOfAllRelatedCases;
-        }
-        
-        List<Case> lstParentCase = [Select id, Status,ParentId from case where Id IN:parentIds];
-        for(Case cp:lstParentCase){
-            cp.Status = 'Closed – Unsuccessfully';
-        }
-        if(lstParentCase.size() > 0){
-            update lstParentCase;
-        }
-        
+        }        
     }
-    public static void caseCreationInOrder(List<Case> lstCase){
+    public static void caseCreationInOrder(List<Case> lstCase, Map<Id, Case> oldMap ){
         
         list<case> lstOfChildCasees = new list<case>();
-        list<case> lstOfCreatedCasees = new list<case>();
-        Integer totalChildCases;
-        //get all custom metadata
+        list<case> lstOfMarkedSuccessCasees = new list<case>();
+        //Get all custom metadata
         Map<String, Order_Of_Tasks__mdt> mapOrderOfTasks = Order_Of_Tasks__mdt.getAll();
         
         Decimal countOrder;
+        if( lstCase[0] != null && lstCase[0].GroupBy__c != null && lstCase[0].GroupBy__c != '' && lstCase[0].ParentId != null )              
+        lstOfMarkedSuccessCasees = [ Select id from case where parentid=:lstCase[0].ParentId AND GroupBy__c=:lstCase[0].GroupBy__c AND Status='Closed – Successfully'];
+        
         for(String eachMap : mapOrderOfTasks.keySet()){
             for(case each : lstCase )
             {
                 if( each.Order__c != null )
                     countOrder=each.Order__c+1;
                 
-                if( (each.Status== 'Closed – Successfully') && ( each.Subject =='Fulfillment Parent Case') &&  mapOrderOfTasks.get(eachMap).Order__c ==1 )
+                if( (each.Status== 'Closed – Successfully' && ( each.ParentId== null ) &&  mapOrderOfTasks.get(eachMap).Order__c==1 )) //&& mapOrderOfTasks.get(eachMap).Record_Type_Name__c==each.RecordType.Name)  )
                 {
                     case objChildCase = new case();
                     objChildCase.ParentId= each.Id;
+                    objChildCase.GroupBy__c= mapOrderOfTasks.get(eachMap).Associated_With__c;
+                    objChildCase.RelatedTo__c=mapOrderOfTasks.get(eachMap).Related_To__c;
                     objChildCase.Order__c=mapOrderOfTasks.get(eachMap).Order__c;
                     objChildCase.RecordTypeId =   mapOrderOfTasks.get(eachMap).RecordTypeId__c;
                     lstOfChildCasees.add(objChildCase);
                     
                 }
-                if( (each.Status== 'Closed – Successfully') && ( each.Subject !='Fulfillment Parent Case') &&  mapOrderOfTasks.get(eachMap).Order__c ==countOrder && countOrder<= 10 )
+                    if( (each.Status== 'Closed – Successfully' && each.GroupBy__c != null && each.GroupBy__c != '' )  && lstOfMarkedSuccessCasees.size()>0 && ( each.ParentId != null) &&  mapOrderOfTasks.get(eachMap).Order__c ==countOrder && countOrder<= 10 )
                 {
                     case objChildCase = new case();
-                    objChildCase.ParentId= each.ParentId;
+                    objChildCase.ParentId = each.ParentId;
+                    objChildCase.GroupBy__c= mapOrderOfTasks.get(eachMap).Associated_With__c;
+                    objChildCase.RelatedTo__c=mapOrderOfTasks.get(eachMap).Related_To__c;
+                    objChildCase.Order__c=mapOrderOfTasks.get(eachMap).Order__c;
+                    objChildCase.RecordTypeId =   mapOrderOfTasks.get(eachMap).RecordTypeId__c;
+                    lstOfChildCasees.add(objChildCase);
+                }
+                
+                if( each.Status== 'Closed – Successfully' && (each.GroupBy__c == null || each.GroupBy__c == '' )  && ( each.ParentId != null) &&  mapOrderOfTasks.get(eachMap).Order__c ==countOrder && countOrder<= 10 )
+                {
+                    case objChildCase = new case();
+                    objChildCase.ParentId = each.ParentId;
+                    objChildCase.GroupBy__c= mapOrderOfTasks.get(eachMap).Associated_With__c;
+                    objChildCase.RelatedTo__c=mapOrderOfTasks.get(eachMap).Related_To__c;
                     objChildCase.Order__c=mapOrderOfTasks.get(eachMap).Order__c;
                     objChildCase.RecordTypeId =   mapOrderOfTasks.get(eachMap).RecordTypeId__c;
                     lstOfChildCasees.add(objChildCase);
